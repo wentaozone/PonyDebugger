@@ -11,6 +11,7 @@
 
 #import "PDDefinitions.h"
 
+
 NSString *const PDDebuggerErrorDomain = @"PDErrorDomain";
 const NSInteger PDDebuggerUnimplementedDomainMethodErrorCode = 100;
 const NSInteger PDDebuggerRequiredAttributeMissingCode = 101;
@@ -102,7 +103,7 @@ NSDictionary *PDRemoteObjectPropertyTypeDetailsForPropertyDescription(NSProperty
 
 NSDictionary *PDRemoteObjectPropertyTypeDetailsForAttributeDescription(NSAttributeDescription *description)
 {
-    NSString *type = nil;
+    NSString *type = @"undefined";
     NSString *subtype = nil;
     
     switch (description.attributeType) {
@@ -135,7 +136,7 @@ NSDictionary *PDRemoteObjectPropertyTypeDetailsForAttributeDescription(NSAttribu
         case NSUndefinedAttributeType:
         case NSBinaryDataAttributeType:
         case NSObjectIDAttributeType:
-            type = @"undefined";
+            // Undefined.
             break;
     }
     
@@ -160,4 +161,34 @@ NSDictionary *PDRemoteObjectPropertyTypeDetailsForRelationshipDescription(NSRela
     }
     
     return [NSDictionary dictionaryWithObject:@"object" forKey:@"type"];
+}
+
+NSDictionary *PDExtractPropertyAttributes(objc_property_t property)
+{
+    NSString *attributesString = [NSString stringWithCString:property_getAttributes(property) encoding:NSASCIIStringEncoding];
+    NSArray *components = [attributesString componentsSeparatedByString:@","];
+
+    // Find the custom getter.
+    NSString *customGetter = nil;
+    NSString *returnEncodeString = nil;
+    for (NSString *component in components) {
+        if ([component hasPrefix:@"G"]) {
+            customGetter = [component substringFromIndex:1];
+        } else if ([component hasPrefix:@"T"]) {
+            returnEncodeString = [component substringFromIndex:1];
+        }
+    }
+
+    if (!customGetter) {
+        customGetter = [NSString stringWithCString:property_getName(property) encoding:NSASCIIStringEncoding];
+    }
+
+    if (!returnEncodeString) {
+        return nil;
+    }
+
+    return @{
+        @"getter": customGetter,
+        @"return": returnEncodeString
+    };
 }

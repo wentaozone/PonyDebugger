@@ -100,6 +100,13 @@ static NSString *const PDManagedObjectContextNameUserInfoKey = @"PDManagedObject
     NSManagedObjectContext *context = [self _managedObjectContextForName:databaseName];
     
     NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:objectStoreName];
+
+    // Don't show subentities if it's not an abstract entity.
+    NSEntityDescription *entityDescription = [NSEntityDescription entityForName:objectStoreName inManagedObjectContext:context];
+    if (![entityDescription isAbstract]) {
+        fetchRequest.includesSubentities = NO;
+    }
+
     NSInteger totalCount = [context countForFetchRequest:fetchRequest error:NULL];
     
     fetchRequest.fetchOffset = [skipCount integerValue];
@@ -183,7 +190,11 @@ static NSString *const PDManagedObjectContextNameUserInfoKey = @"PDManagedObject
 {
     NSMutableArray *paths = [[NSMutableArray alloc] init];
     for (NSPersistentStore *store in context.persistentStoreCoordinator.persistentStores) {
-        [paths addObject:[[context.persistentStoreCoordinator URLForPersistentStore:store].lastPathComponent stringByDeletingPathExtension]];
+        NSURL *url = [context.persistentStoreCoordinator URLForPersistentStore:store];
+        NSString *pathString = [url.lastPathComponent stringByDeletingPathExtension];
+        if (pathString) {
+            [paths addObject:pathString];
+        }
     }
     
     return [paths componentsJoinedByString:@":"];
